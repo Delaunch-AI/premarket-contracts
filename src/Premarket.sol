@@ -43,7 +43,8 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         uint256[] calldata lotSizes,
         uint256 fulfillWindow,
         uint256 platformFeeRate,
-        string calldata metadataURI
+        string calldata metadataURI,
+        bool defaultCollateralToBuyer
     ) external onlyOwner returns (uint256) {
         if (
             lotSizes.length == 0 || fulfillWindow == 0 || platformFeeRate > 1000 // Max 10% fee
@@ -61,11 +62,24 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             platformFeeRate: platformFeeRate,
             isActive: true,
             hasToken: false,
-            hasTokenAmount: false
+            hasTokenAmount: false,
+            defaultCollateralToBuyer: defaultCollateralToBuyer
         });
 
         emit MarketCreated(marketId);
         return marketId;
+    }
+
+    /**
+     * @dev Updates the default collateral recipient setting for a market
+     */
+    function setDefaultCollateralRecipient(
+        uint256 marketId,
+        bool defaultCollateralToBuyer
+    ) external onlyOwner {
+        Market storage market = markets[marketId];
+        market.defaultCollateralToBuyer = defaultCollateralToBuyer;
+        emit DefaultCollateralSettingUpdated(marketId, defaultCollateralToBuyer);
     }
 
     /**
@@ -125,7 +139,8 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             uint256 platformFeeRate,
             bool isActive,
             bool hasToken,
-            bool hasTokenAmount
+            bool hasTokenAmount,
+            bool defaultCollateralToBuyer
         )
     {
         Market storage market = markets[marketId];
@@ -137,7 +152,8 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             market.platformFeeRate,
             market.isActive,
             market.hasToken,
-            market.hasTokenAmount
+            market.hasTokenAmount,
+            market.defaultCollateralToBuyer
         );
     }
 
@@ -350,6 +366,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         bytes calldata signature
     ) external nonReentrant {
         bytes32 orderHash = getOrderHash(order);
+        Market storage market = markets[order.marketId];
 
         // Verify order state and authorization
         if (orderStatus[orderHash] != OrderStatus.Matched)
@@ -374,8 +391,9 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         (bool success1, ) = msg.sender.call{value: buyerAmount}("");
         if (!success1) revert TransferFailed();
 
-        // Send seller's collateral to platform
-        (bool success2, ) = owner().call{value: platformAmount}("");
+        // Send seller's collateral to platform or buyer based on market setting
+        address collateralRecipient = market.defaultCollateralToBuyer ? msg.sender : owner();
+        (bool success2, ) = collateralRecipient.call{value: platformAmount}("");
         if (!success2) revert TransferFailed();
 
         emit OrderDefaulted(orderHash);

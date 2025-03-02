@@ -32,6 +32,7 @@ interface IPremarket {
         bool isActive; // Market status
         bool hasToken; // Whether token is set
         bool hasTokenAmount; // Whether token amount is set
+        bool defaultCollateralToBuyer; // If true, defaulted collateral goes to buyer instead of platform
     }
 
     // Events
@@ -43,6 +44,7 @@ interface IPremarket {
     event OrderFulfilled(bytes32 indexed orderHash);
     event OrderCancelled(bytes32 indexed orderHash);
     event OrderDefaulted(bytes32 indexed orderHash);
+    event DefaultCollateralSettingUpdated(uint256 indexed marketId, bool defaultCollateralToBuyer);
 
     // Errors
     error InvalidMarketParameters();
