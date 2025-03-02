@@ -2,8 +2,8 @@
 pragma solidity ^0.8.22;
 
 import {Test, console2} from "forge-std/Test.sol";
-import "../src/PreMarketV2.sol";
-import "../src/interfaces/IPremarketV2.sol";
+import "../src/PreMarket.sol";
+import "../src/interfaces/IPremarket.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockToken is ERC20 {
@@ -12,8 +12,8 @@ contract MockToken is ERC20 {
     }
 }
 
-contract PreMarketV2Test is Test {
-    PremarketV2 public market;
+contract PreMarketTest is Test {
+    Premarket public market;
     MockToken public token;
 
     address owner = makeAddr("owner");
@@ -27,7 +27,7 @@ contract PreMarketV2Test is Test {
 
     function setUp() public {
         vm.startPrank(owner);
-        market = new PremarketV2();
+        market = new Premarket();
         token = new MockToken();
         vm.stopPrank();
 
@@ -90,7 +90,7 @@ contract PreMarketV2Test is Test {
         vm.stopPrank();
 
         // Create order parameters
-        IPremarketV2.Order memory order = IPremarketV2.Order({
+        IPremarket.Order memory order = IPremarket.Order({
             maker: seller,
             marketId: marketId,
             lotSize: 10 ether, // 10 AVAX
@@ -110,7 +110,7 @@ contract PreMarketV2Test is Test {
         // Verify order status
         assertEq(
             uint256(market.orderStatus(orderHash)),
-            uint256(IPremarketV2.OrderStatus.Active)
+            uint256(IPremarket.OrderStatus.Active)
         );
 
         // Buyer matches order
@@ -121,7 +121,7 @@ contract PreMarketV2Test is Test {
         // Verify order was matched
         assertEq(
             uint256(market.orderStatus(orderHash)),
-            uint256(IPremarketV2.OrderStatus.Matched)
+            uint256(IPremarket.OrderStatus.Matched)
         );
     }
 
@@ -139,7 +139,7 @@ contract PreMarketV2Test is Test {
         vm.stopPrank();
 
         // Create order parameters
-        IPremarketV2.Order memory order = IPremarketV2.Order({
+        IPremarket.Order memory order = IPremarket.Order({
             maker: seller,
             marketId: marketId,
             lotSize: 10 ether, // 10 AVAX
@@ -184,7 +184,7 @@ contract PreMarketV2Test is Test {
         // Verify order fulfilled
         assertEq(
             uint256(market.orderStatus(orderHash)),
-            uint256(IPremarketV2.OrderStatus.Fulfilled)
+            uint256(IPremarket.OrderStatus.Fulfilled)
         );
 
         // Verify balances
@@ -211,7 +211,7 @@ contract PreMarketV2Test is Test {
         vm.stopPrank();
 
         // Create order parameters
-        IPremarketV2.Order memory order = IPremarketV2.Order({
+        IPremarket.Order memory order = IPremarket.Order({
             maker: seller,
             marketId: marketId,
             lotSize: 10 ether,
@@ -236,7 +236,7 @@ contract PreMarketV2Test is Test {
         // Verify order cancelled and collateral returned
         assertEq(
             uint256(market.orderStatus(orderHash)),
-            uint256(IPremarketV2.OrderStatus.Cancelled)
+            uint256(IPremarket.OrderStatus.Cancelled)
         );
         assertEq(seller.balance, sellerBalanceBefore + order.lotSize);
     }
@@ -255,7 +255,7 @@ contract PreMarketV2Test is Test {
         vm.stopPrank();
 
         // Create order parameters
-        IPremarketV2.Order memory order = IPremarketV2.Order({
+        IPremarket.Order memory order = IPremarket.Order({
             maker: seller,
             marketId: marketId,
             lotSize: 10 ether,
@@ -289,7 +289,7 @@ contract PreMarketV2Test is Test {
         // Verify order defaulted
         assertEq(
             uint256(market.orderStatus(orderHash)),
-            uint256(IPremarketV2.OrderStatus.Defaulted)
+            uint256(IPremarket.OrderStatus.Defaulted)
         );
 
         // Verify balances - buyer gets their payment back, platform gets seller's collateral

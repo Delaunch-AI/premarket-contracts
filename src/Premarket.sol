@@ -5,13 +5,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "./interfaces/IPremarketV2.sol";
+import "./interfaces/IPremarket.sol";
 
 /**
- * @title PremarketV2
+ * @title Premarket
  * @dev A decentralized OTC market for pre-TGE token trading
  */
-contract PremarketV2 is Ownable, ReentrancyGuard, IPremarketV2 {
+contract Premarket is Ownable, ReentrancyGuard, IPremarket {
     using ECDSA for bytes32;
 
     // State variables
@@ -83,7 +83,6 @@ contract PremarketV2 is Ownable, ReentrancyGuard, IPremarketV2 {
             revert InvalidMarketParameters();
         }
 
-        //TODO: MAYBE DONT? IN CASE SET WRONG
         // if (market.hasToken) {
         //     revert TokenAlreadySet();
         // }
