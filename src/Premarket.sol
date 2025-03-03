@@ -79,7 +79,10 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
     ) external onlyOwner {
         Market storage market = markets[marketId];
         market.defaultCollateralToBuyer = defaultCollateralToBuyer;
-        emit DefaultCollateralSettingUpdated(marketId, defaultCollateralToBuyer);
+        emit DefaultCollateralSettingUpdated(
+            marketId,
+            defaultCollateralToBuyer
+        );
     }
 
     /**
@@ -140,7 +143,8 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             bool isActive,
             bool hasToken,
             bool hasTokenAmount,
-            bool defaultCollateralToBuyer
+            bool defaultCollateralToBuyer,
+            string memory metadataURI
         )
     {
         Market storage market = markets[marketId];
@@ -153,7 +157,8 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             market.isActive,
             market.hasToken,
             market.hasTokenAmount,
-            market.defaultCollateralToBuyer
+            market.defaultCollateralToBuyer,
+            market.metadataURI
         );
     }
 
@@ -392,7 +397,9 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         if (!success1) revert TransferFailed();
 
         // Send seller's collateral to platform or buyer based on market setting
-        address collateralRecipient = market.defaultCollateralToBuyer ? msg.sender : owner();
+        address collateralRecipient = market.defaultCollateralToBuyer
+            ? msg.sender
+            : owner();
         (bool success2, ) = collateralRecipient.call{value: platformAmount}("");
         if (!success2) revert TransferFailed();
 

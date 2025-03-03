@@ -11,6 +11,18 @@ contract DeployScript is Script {
 
         Premarket premarket = new Premarket();
 
+        uint256[] memory lotSizes = new uint256[](2);
+        lotSizes[0] = 0.01 ether;
+        lotSizes[1] = 0.02 ether;
+
+        premarket.createMarket(
+            lotSizes,
+            86400,
+            500,
+            "https://pyrdmmdqiqerkvwzvkha.supabase.co/storage/v1/object/public/premarket_static/markets/0.json",
+            false
+        );
+
         console.log("Premarket: ", address(premarket));
     }
 }
