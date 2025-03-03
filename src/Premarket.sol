@@ -270,10 +270,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         // Calculate fees
         uint256 platformFeeRate = market.platformFeeRate;
         uint256 paymentFee = (order.price * platformFeeRate) / 10000;
-        uint256 tokenFee = (market.lots[order.lotIndex].size * platformFeeRate) / 10000;
-
-        // Get token amount for this lot
-        uint256 lotTokenAmount = market.lots[order.lotIndex].size;
+        uint256 tokenFee = (market.tokenAmount * platformFeeRate) / 10000;
 
         // Transfer tokens to buyer and platform
         IERC20 token = IERC20(market.tokenAddress);
@@ -281,7 +278,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             !token.transferFrom(
                 msg.sender,
                 orderTakers[orderHash],
-                lotTokenAmount - tokenFee
+                market.tokenAmount - tokenFee
             )
         ) {
             revert TransferFailed();
