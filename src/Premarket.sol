@@ -40,14 +40,14 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
      * @dev Creates a new market
      */
     function createMarket(
-        uint256[] calldata lotSizes,
+        Lot[] calldata lots,
         uint256 fulfillWindow,
         uint256 platformFeeRate,
         string calldata metadataURI,
         bool defaultCollateralToBuyer
     ) external onlyOwner returns (uint256) {
         if (
-            lotSizes.length == 0 || fulfillWindow == 0 || platformFeeRate > 1000 // Max 10% fee
+            lots.length == 0 || fulfillWindow == 0 || platformFeeRate > 1000 // Max 10% fee
         ) {
             revert InvalidMarketParameters();
         }
@@ -57,7 +57,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             metadataURI: metadataURI,
             tokenAmount: 0,
             tokenAddress: address(0),
-            lotSizes: lotSizes,
+            lots: lots,
             fulfillWindow: fulfillWindow,
             platformFeeRate: platformFeeRate,
             isActive: true,
@@ -97,10 +97,6 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             revert InvalidMarketParameters();
         }
 
-        // if (market.hasToken) {
-        //     revert TokenAlreadySet();
-        // }
-
         market.tokenAddress = tokenAddress;
         market.hasToken = true;
         emit TokenSet(marketId, tokenAddress);
@@ -134,7 +130,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         returns (
             uint256 tokenAmount,
             address tokenAddress,
-            uint256[] memory lotSizes,
+            Lot[] memory lots,
             uint256 fulfillWindow,
             uint256 platformFeeRate,
             bool isActive,
@@ -147,7 +143,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         return (
             market.tokenAmount,
             market.tokenAddress,
-            market.lotSizes,
+            market.lots,
             market.fulfillWindow,
             market.platformFeeRate,
             market.isActive,
@@ -166,15 +162,8 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         // Check market is active
         if (!market.isActive) return false;
 
-        // Validate lot size
-        bool validLot = false;
-        for (uint256 i = 0; i < market.lotSizes.length; i++) {
-            if (order.lotSize == market.lotSizes[i]) {
-                validLot = true;
-                break;
-            }
-        }
-        if (!validLot) return false;
+        // Validate lot index
+        if (order.lotIndex >= market.lots.length) return false;
 
         // Check expiration
         if (block.timestamp >= order.expiration) return false;
@@ -191,7 +180,8 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
                 abi.encode(
                     order.maker,
                     order.marketId,
-                    order.lotSize,
+                    order.lotIndex,
+                    order.price,
                     order.expiration,
                     order.salt
                 )
@@ -211,16 +201,13 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         if (!validateOrder(order)) revert InvalidOrder();
 
         // Verify signature
-
         _verifySignature(order.maker, signature, orderHash);
-        // if (order.maker != orderHash.recover(signature))
-        //     revert InvalidSignature();
 
         // Verify sender is maker
         if (msg.sender != order.maker) revert Unauthorized();
 
-        // Verify collateral matches lot size
-        if (msg.value != order.lotSize) revert InsufficientCollateral();
+        // Verify collateral matches price
+        if (msg.value != order.price) revert InsufficientCollateral();
 
         // Store order details
         orderStatus[orderHash] = OrderStatus.Active;
@@ -245,14 +232,10 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             revert OrderNotActive();
 
         // Verify signature
-
         _verifySignature(order.maker, signature, orderHash);
 
-        // if (order.maker != orderHash.recover(signature))
-        //     revert InvalidSignature();
-
-        // Verify payment matches lot size
-        if (msg.value != order.lotSize) revert InsufficientCollateral();
+        // Verify payment matches price
+        if (msg.value != order.price) revert InsufficientCollateral();
 
         // Update order status
         orderStatus[orderHash] = OrderStatus.Matched;
@@ -286,7 +269,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
 
         // Calculate fees
         uint256 platformFeeRate = market.platformFeeRate;
-        uint256 paymentFee = (order.lotSize * platformFeeRate) / 10000;
+        uint256 paymentFee = (order.price * platformFeeRate) / 10000;
         uint256 tokenFee = (market.tokenAmount * platformFeeRate) / 10000;
 
         // Transfer tokens to buyer and platform
@@ -341,8 +324,6 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         if (msg.sender != orderMakers[orderHash]) revert Unauthorized();
 
         _verifySignature(order.maker, signature, orderHash);
-        // if (order.maker != orderHash.recover(signature))
-        //     revert InvalidSignature();
 
         // Store amount before clearing storage
         uint256 refundAmount = orderCollateral[orderHash];
@@ -373,8 +354,6 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             revert InvalidOrder();
         if (msg.sender != orderTakers[orderHash]) revert Unauthorized();
         _verifySignature(order.maker, signature, orderHash);
-        // if (order.maker != orderHash.recover(signature))
-        //     revert InvalidSignature();
         if (block.timestamp <= orderDeadlines[orderHash])
             revert DeadlineNotReached();
 
