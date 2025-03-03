@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
 import "../src/Premarket.sol";
+import "../src/interfaces/IPremarket.sol";
 
 contract DeployScript is Script {
     function run() public {
@@ -11,12 +12,13 @@ contract DeployScript is Script {
 
         Premarket premarket = new Premarket();
 
-        uint256[] memory lotSizes = new uint256[](2);
-        lotSizes[0] = 0.01 ether;
-        lotSizes[1] = 0.02 ether;
+        IPremarket.Lot[] memory lots = new IPremarket.Lot[](3);
+        lots[0] = IPremarket.Lot("Small", 0.01 ether);
+        lots[1] = IPremarket.Lot("Medium", 0.03 ether);
+        lots[2] = IPremarket.Lot("Large", 0.05 ether);
 
         premarket.createMarket(
-            lotSizes,
+            lots,
             86400,
             500,
             "https://pyrdmmdqiqerkvwzvkha.supabase.co/storage/v1/object/public/premarket_static/markets/0.json",

@@ -24,7 +24,6 @@ interface IPremarket {
         uint256 marketId; // ID of the market this order belongs to
         uint256 lotIndex; // Index of the lot being sold
         uint256 price; // Selling price in native currency
-        uint256 expiration; // Order expiration timestamp
         bytes32 salt; // Random value for uniqueness
     }
 

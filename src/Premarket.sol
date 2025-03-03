@@ -171,7 +171,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         if (order.lotIndex >= market.lots.length) return false;
 
         // Check expiration
-        if (block.timestamp >= order.expiration) return false;
+        // if (block.timestamp >= order.expiration) return false;
 
         return true;
     }
@@ -187,7 +187,6 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
                     order.marketId,
                     order.lotIndex,
                     order.price,
-                    order.expiration,
                     order.salt
                 )
             );
