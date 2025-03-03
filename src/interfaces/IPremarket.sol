@@ -12,11 +12,18 @@ interface IPremarket {
         Defaulted // Seller failed to deliver tokens
     }
 
+    // Lot definition for whitelist tiers
+    struct Lot {
+        string name;    // Human readable name (e.g. "Small", "Medium", "Large")
+        uint256 size;   // Allocation size in native currency (e.g. 10 AVAX worth)
+    }
+
     // Order parameters stored off-chain
     struct Order {
         address maker; // Address of the order creator (seller)
         uint256 marketId; // ID of the market this order belongs to
-        uint256 lotSize; // Size of the lot in native currency
+        uint256 lotIndex; // Index of the lot being sold
+        uint256 price; // Selling price in native currency
         uint256 expiration; // Order expiration timestamp
         bytes32 salt; // Random value for uniqueness
     }
@@ -26,7 +33,7 @@ interface IPremarket {
         string metadataURI; // Metadata URI for off-chain data
         uint256 tokenAmount; // Amount of tokens being sold
         address tokenAddress; // Token contract address (set after TGE)
-        uint256[] lotSizes; // Allowed lot sizes in native currency
+        Lot[] lots; // Available whitelist tiers
         uint256 fulfillWindow; // Time window for fulfillment after match
         uint256 platformFeeRate; // Platform fee in basis points (e.g. 1000 = 10%)
         bool isActive; // Market status
