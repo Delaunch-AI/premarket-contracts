@@ -1,307 +1,323 @@
-// // SPDX-License-Identifier: MIT
-// pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.22;
 
-// import {Test, console2} from "forge-std/Test.sol";
-// import "../src/PreMarket.sol";
-// import "../src/interfaces/IPremarket.sol";
-// import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Test, console2} from "forge-std/Test.sol";
+import "../src/PreMarket.sol";
+import "../src/interfaces/IPremarket.sol";
 
-// contract MockToken is ERC20 {
-//     constructor() ERC20("Mock Token", "MTK") {
-//         _mint(msg.sender, 1000000 * (10 ** decimals()));
-//     }
-// }
+contract MockToken is ERC20 {
+    constructor() ERC20("Mock Token", "MTK") {
+        _mint(msg.sender, 1000000 * (10 ** 18));
+    }
+}
 
-// contract PreMarketTest is Test {
-//     Premarket public market;
-//     MockToken public token;
+contract PreMarketTest is Test {
+    Premarket public market;
+    MockToken public token;
 
-//     address owner = makeAddr("owner");
-//     address seller = makeAddr("seller");
-//     address buyer = makeAddr("buyer");
-//     uint256 sellerPrivateKey = 0x1;
-//     uint256 buyerPrivateKey = 0x2;
+    address owner = makeAddr("owner");
+    address seller = makeAddr("seller");
+    address buyer = makeAddr("buyer");
+    uint256 sellerPrivateKey = 0x1;
+    uint256 buyerPrivateKey = 0x2;
 
-//     uint256 constant PLATFORM_FEE = 1000; // 10%
-//     uint256[] lotSizes = [10 ether]; // 10 AVAX lot
+    uint256 constant PLATFORM_FEE = 1000; // 10%
 
-//     function setUp() public {
-//         vm.startPrank(owner);
-//         market = new Premarket();
-//         token = new MockToken();
-//         vm.stopPrank();
+    function setUp() public {
+        vm.startPrank(owner);
+        market = new Premarket();
+        token = new MockToken();
+        vm.stopPrank();
 
-//         // Set seller and buyer addresses based on private keys
-//         seller = vm.addr(sellerPrivateKey);
-//         buyer = vm.addr(buyerPrivateKey);
+        // Set seller and buyer addresses based on private keys
+        seller = vm.addr(sellerPrivateKey);
+        buyer = vm.addr(buyerPrivateKey);
 
-//         // Give tokens to seller
-//         vm.startPrank(owner);
-//         token.transfer(seller, 10000 * (10 ** token.decimals()));
-//         vm.stopPrank();
+        // Give tokens to seller
+        vm.startPrank(owner);
+        token.transfer(seller, 10000 ether);
+        vm.stopPrank();
 
-//         // Fund accounts with ETH
-//         vm.deal(seller, 1000 ether);
-//         vm.deal(buyer, 1000 ether);
-//     }
+        // Fund accounts with ETH
+        vm.deal(seller, 1000 ether);
+        vm.deal(buyer, 1000 ether);
+    }
 
-//     function test_CreateMarket() public {
-//         vm.startPrank(owner);
+    function test_CreateMarket() public {
+        vm.startPrank(owner);
 
-//         uint256 marketId = market.createMarket(
-//             lotSizes,
-//             24 hours, // fulfillWindow
-//             PLATFORM_FEE,
-//             "MOCK URI"
-//         );
+        uint256 marketId = market.createMarket(
+            24 hours, // fulfillWindow
+            PLATFORM_FEE,
+            "MOCK URI",
+            false
+        );
 
-//         assertEq(marketId, 1);
+        assertEq(marketId, 1);
 
-//         (
-//             ,
-//             address tokenAddress,
-//             uint256[] memory marketLotSizes,
-//             ,
-//             ,
-//             bool isActive,
-//             bool hasToken,
+        IPremarket.Market memory _market = market.getMarketDetails(marketId);
 
-//         ) = market.getMarketDetails(marketId);
+        address tokenAddress = _market.tokenAddress;
 
-//         assertEq(tokenAddress, address(0));
-//         assertEq(marketLotSizes[0], lotSizes[0]);
-//         assertTrue(isActive);
-//         assertFalse(hasToken);
+        bool isActive = _market.isActive;
+        bool hasToken = _market.hasTokenDetails;
 
-//         vm.stopPrank();
-//     }
+        // (
+        //     ,
+        //     address tokenAddress,
+        //     ,
+        //     ,
+        //     ,
+        //     ,
+        //     bool isActive,
+        //     bool hasToken,
+        //     ,
 
-//     function test_CreateAndMatchOrder() public {
-//         // Setup market
-//         vm.startPrank(owner);
-//         uint256 marketId = market.createMarket(
-//             lotSizes,
-//             24 hours,
-//             PLATFORM_FEE,
-//             "MOCK URI"
-//         );
-//         market.setMarketTokenAddress(marketId, address(token));
-//         market.setMarketTokenAmount(marketId, 100 * (10 ** token.decimals())); // 100 tokens
-//         vm.stopPrank();
+        // ) = market.getMarketDetails(marketId);
 
-//         // Create order parameters
-//         IPremarket.Order memory order = IPremarket.Order({
-//             maker: seller,
-//             marketId: marketId,
-//             lotSize: 10 ether, // 10 AVAX
-//             expiration: block.timestamp + 7 days,
-//             salt: bytes32(uint256(1))
-//         });
+        assertEq(tokenAddress, address(0));
+        assertTrue(isActive);
+        assertFalse(hasToken);
 
-//         // Get order hash and sign it
-//         bytes32 orderHash = market.getOrderHash(order);
-//         bytes memory signature = signOrder(orderHash, sellerPrivateKey);
+        vm.stopPrank();
+    }
 
-//         // Seller creates order
-//         vm.startPrank(seller);
-//         market.createOrder{value: order.lotSize}(order, signature);
-//         vm.stopPrank();
+    function test_CreateAndMatchOrder() public {
+        // Setup market
+        vm.startPrank(owner);
+        uint256 marketId = market.createMarket(
+            24 hours, // fulfillWindow
+            PLATFORM_FEE,
+            "MOCK URI",
+            false
+        );
+        market.setMarketTokenDetails(marketId, 100 ether, address(token));
 
-//         // Verify order status
-//         assertEq(
-//             uint256(market.orderStatus(orderHash)),
-//             uint256(IPremarket.OrderStatus.Active)
-//         );
+        vm.stopPrank();
 
-//         // Buyer matches order
-//         vm.startPrank(buyer);
-//         market.matchOrder{value: order.lotSize}(order, signature);
-//         vm.stopPrank();
+        // Create order parameters
+        IPremarket.Order memory order = IPremarket.Order({
+            maker: seller,
+            marketId: marketId,
+            price: 10 ether, // 10 AVAX
+            salt: bytes32(uint256(1))
+        });
 
-//         // Verify order was matched
-//         assertEq(
-//             uint256(market.orderStatus(orderHash)),
-//             uint256(IPremarket.OrderStatus.Matched)
-//         );
-//     }
+        // Get order hash and sign it
+        bytes32 orderHash = market.getOrderHash(order);
 
-//     function test_FulfillOrder() public {
-//         // Setup market
-//         vm.startPrank(owner);
-//         uint256 marketId = market.createMarket(
-//             lotSizes,
-//             24 hours,
-//             PLATFORM_FEE,
-//             "MOCK URI"
-//         );
-//         market.setMarketTokenAddress(marketId, address(token));
-//         market.setMarketTokenAmount(marketId, 100 * (10 ** token.decimals())); // 100 tokens
-//         vm.stopPrank();
+        // Seller creates order
+        vm.startPrank(seller);
+        market.createOrder{value: order.price}(order);
+        vm.stopPrank();
 
-//         // Create order parameters
-//         IPremarket.Order memory order = IPremarket.Order({
-//             maker: seller,
-//             marketId: marketId,
-//             lotSize: 10 ether, // 10 AVAX
-//             expiration: block.timestamp + 7 days,
-//             salt: bytes32(uint256(1))
-//         });
+        assertEq(market.getUserOrderCount(seller), 1);
+        assertEq(market.getUserOrderHashByIndex(seller, 0), orderHash);
 
-//         bytes32 orderHash = market.getOrderHash(order);
-//         bytes memory signature = signOrder(orderHash, sellerPrivateKey);
+        (, , , , IPremarket.OrderStatus orderStatus) = market.getOrderByHash(
+            orderHash
+        );
 
-//         // Seller creates order
-//         vm.startPrank(seller);
-//         market.createOrder{value: order.lotSize}(order, signature);
-//         vm.stopPrank();
+        // Verify order status
+        assertEq(uint256(orderStatus), uint256(IPremarket.OrderStatus.Active));
 
-//         // Buyer matches order
-//         vm.startPrank(buyer);
-//         market.matchOrder{value: order.lotSize}(order, signature);
-//         vm.stopPrank();
+        // Buyer matches order
+        vm.startPrank(buyer);
+        market.matchOrder{value: order.price}(order);
+        vm.stopPrank();
 
-//         // Record balances before fulfillment
-//         uint256 sellerBalanceBefore = seller.balance;
-//         uint256 ownerBalanceBefore = owner.balance;
-//         uint256 buyerTokensBefore = token.balanceOf(buyer);
-//         uint256 ownerTokensBefore = token.balanceOf(owner);
+        (, , , , IPremarket.OrderStatus orderStatusAfterMatched) = market
+            .getOrderByHash(orderHash);
 
-//         (uint256 tokenAmount, , , , , , , ) = market.getMarketDetails(marketId);
+        // Verify order was matched
+        assertEq(
+            uint256(orderStatusAfterMatched),
+            uint256(IPremarket.OrderStatus.Matched)
+        );
+    }
 
-//         // Calculate expected amounts
-//         uint256 platformFeeAvax = (order.lotSize * PLATFORM_FEE) / 10000; // 10% of 10 AVAX = 1 AVAX
-//         uint256 platformFeeTokens = (tokenAmount * PLATFORM_FEE) / 10000; // 10% of 100 tokens = 10 tokens
-//         uint256 expectedSellerAmount = order.lotSize +
-//             (order.lotSize - platformFeeAvax); // Collateral + (Payment - Fee)
-//         uint256 expectedBuyerTokens = tokenAmount - platformFeeTokens; // 90 tokens
+    function test_FulfillOrder() public {
+        // Setup market
+        vm.startPrank(owner);
+        uint256 marketId = market.createMarket(
+            24 hours,
+            PLATFORM_FEE,
+            "MOCK URI",
+            false
+        );
 
-//         // Seller fulfills order
-//         vm.startPrank(seller);
-//         token.approve(address(market), tokenAmount);
-//         market.fulfillOrder(order, signature);
-//         vm.stopPrank();
+        market.setMarketTokenDetails(marketId, 100 ether, address(token));
+        market.setMarketDeadline(marketId);
+        vm.stopPrank();
 
-//         // Verify order fulfilled
-//         assertEq(
-//             uint256(market.orderStatus(orderHash)),
-//             uint256(IPremarket.OrderStatus.Fulfilled)
-//         );
+        // Create order parameters
+        IPremarket.Order memory order = IPremarket.Order({
+            maker: seller,
+            marketId: marketId,
+            price: 10 ether, // 10 AVAX
+            salt: bytes32(uint256(1))
+        });
 
-//         // Verify balances
-//         assertEq(seller.balance, sellerBalanceBefore + expectedSellerAmount);
-//         assertEq(owner.balance, ownerBalanceBefore + platformFeeAvax);
-//         assertEq(
-//             token.balanceOf(buyer),
-//             buyerTokensBefore + expectedBuyerTokens
-//         );
-//         assertEq(token.balanceOf(owner), ownerTokensBefore + platformFeeTokens);
-//     }
+        bytes32 orderHash = market.getOrderHash(order);
 
-//     function test_CancelOrder() public {
-//         // Setup market
-//         vm.startPrank(owner);
-//         uint256 marketId = market.createMarket(
-//             lotSizes,
-//             24 hours,
-//             PLATFORM_FEE,
-//             "MOCK URI"
-//         );
-//         market.setMarketTokenAddress(marketId, address(token));
-//         market.setMarketTokenAmount(marketId, 100 * (10 ** token.decimals())); // 100 tokens
-//         vm.stopPrank();
+        // Seller creates order
+        vm.startPrank(seller);
+        market.createOrder{value: order.price}(order);
+        vm.stopPrank();
 
-//         // Create order parameters
-//         IPremarket.Order memory order = IPremarket.Order({
-//             maker: seller,
-//             marketId: marketId,
-//             lotSize: 10 ether,
-//             expiration: block.timestamp + 7 days,
-//             salt: bytes32(uint256(1))
-//         });
+        // Buyer matches order
+        vm.startPrank(buyer);
+        market.matchOrder{value: order.price}(order);
+        vm.stopPrank();
 
-//         bytes32 orderHash = market.getOrderHash(order);
-//         bytes memory signature = signOrder(orderHash, sellerPrivateKey);
+        // Record balances before fulfillment
+        uint256 sellerBalanceBefore = seller.balance;
+        uint256 ownerBalanceBefore = owner.balance;
+        uint256 buyerTokensBefore = token.balanceOf(buyer);
+        uint256 ownerTokensBefore = token.balanceOf(owner);
 
-//         // Seller creates order
-//         vm.startPrank(seller);
-//         market.createOrder{value: order.lotSize}(order, signature);
+        // (uint256 tokenAmount, , , , , , , , , ) = market.getMarketDetails(
+        //     marketId
+        // );
 
-//         // Record balance before cancellation
-//         uint256 sellerBalanceBefore = seller.balance;
+        IPremarket.Market memory _market = market.getMarketDetails(marketId);
+        uint256 tokenAmount = _market.tokenAmount;
 
-//         // Seller cancels order
-//         market.cancelOrder(order, signature);
-//         vm.stopPrank();
+        // Calculate expected amounts
+        uint256 platformFeeAvax = (order.price * PLATFORM_FEE) / 10000; // 10% of 10 AVAX = 1 AVAX
+        uint256 platformFeeTokens = (tokenAmount * PLATFORM_FEE) / 10000; // 10% of 100 tokens = 10 tokens
+        uint256 expectedSellerAmount = order.price +
+            (order.price - platformFeeAvax); // Collateral + (Payment - Fee)
+        uint256 expectedBuyerTokens = tokenAmount - platformFeeTokens; // 90 tokens
 
-//         // Verify order cancelled and collateral returned
-//         assertEq(
-//             uint256(market.orderStatus(orderHash)),
-//             uint256(IPremarket.OrderStatus.Cancelled)
-//         );
-//         assertEq(seller.balance, sellerBalanceBefore + order.lotSize);
-//     }
+        // Seller fulfills order
+        vm.startPrank(seller);
+        token.approve(address(market), tokenAmount);
+        market.fulfillOrder(order);
+        vm.stopPrank();
 
-//     function test_ClaimDefault() public {
-//         // Setup market
-//         vm.startPrank(owner);
-//         uint256 marketId = market.createMarket(
-//             lotSizes,
-//             24 hours,
-//             PLATFORM_FEE,
-//             "MOCK URI"
-//         );
-//         market.setMarketTokenAddress(marketId, address(token));
-//         market.setMarketTokenAmount(marketId, 100 * (10 ** token.decimals())); // 100 tokens
-//         vm.stopPrank();
+        (, , , , IPremarket.OrderStatus orderStatus) = market.getOrderByHash(
+            orderHash
+        );
 
-//         // Create order parameters
-//         IPremarket.Order memory order = IPremarket.Order({
-//             maker: seller,
-//             marketId: marketId,
-//             lotSize: 10 ether,
-//             expiration: block.timestamp + 7 days,
-//             salt: bytes32(uint256(1))
-//         });
+        // Verify order fulfilled
+        assertEq(
+            uint256(orderStatus),
+            uint256(IPremarket.OrderStatus.Fulfilled)
+        );
 
-//         bytes32 orderHash = market.getOrderHash(order);
-//         bytes memory signature = signOrder(orderHash, sellerPrivateKey);
+        // Verify balances
+        assertEq(seller.balance, sellerBalanceBefore + expectedSellerAmount);
+        assertEq(owner.balance, ownerBalanceBefore + platformFeeAvax);
+        assertEq(
+            token.balanceOf(buyer),
+            buyerTokensBefore + expectedBuyerTokens
+        );
+        assertEq(token.balanceOf(owner), ownerTokensBefore + platformFeeTokens);
+    }
 
-//         // Seller creates order
-//         vm.startPrank(seller);
-//         market.createOrder{value: order.lotSize}(order, signature);
-//         vm.stopPrank();
+    function test_CancelOrder() public {
+        // Setup market
+        vm.startPrank(owner);
+        uint256 marketId = market.createMarket(
+            24 hours, // fulfillWindow
+            PLATFORM_FEE,
+            "MOCK URI",
+            false
+        );
+        market.setMarketTokenDetails(marketId, 100 ether, address(token));
+        vm.stopPrank();
 
-//         // Buyer matches order
-//         vm.startPrank(buyer);
-//         market.matchOrder{value: order.lotSize}(order, signature);
+        // Create order parameters
+        IPremarket.Order memory order = IPremarket.Order({
+            maker: seller,
+            marketId: marketId,
+            price: 10 ether,
+            salt: bytes32(uint256(1))
+        });
 
-//         // Record balances before default
-//         uint256 buyerBalanceBefore = buyer.balance;
-//         uint256 ownerBalanceBefore = owner.balance;
+        bytes32 orderHash = market.getOrderHash(order);
 
-//         // Fast forward past deadline
-//         vm.warp(block.timestamp + 25 hours);
+        // Seller creates order
+        vm.startPrank(seller);
+        market.createOrder{value: order.price}(order);
 
-//         // Buyer claims default
-//         market.claimDefault(order, signature);
-//         vm.stopPrank();
+        // Record balance before cancellation
+        uint256 sellerBalanceBefore = seller.balance;
 
-//         // Verify order defaulted
-//         assertEq(
-//             uint256(market.orderStatus(orderHash)),
-//             uint256(IPremarket.OrderStatus.Defaulted)
-//         );
+        // Seller cancels order
+        market.cancelOrder(order);
+        vm.stopPrank();
 
-//         // Verify balances - buyer gets their payment back, platform gets seller's collateral
-//         assertEq(buyer.balance, buyerBalanceBefore + order.lotSize);
-//         assertEq(owner.balance, ownerBalanceBefore + order.lotSize);
-//     }
+        (, , , , IPremarket.OrderStatus orderStatus) = market.getOrderByHash(
+            orderHash
+        );
 
-//     function signOrder(
-//         bytes32 orderHash,
-//         uint256 privateKey
-//     ) internal pure returns (bytes memory) {
-//         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, orderHash);
-//         return abi.encodePacked(r, s, v);
-//     }
-// }
+        // Verify order cancelled and collateral returned
+        assertEq(
+            uint256(orderStatus),
+            uint256(IPremarket.OrderStatus.Cancelled)
+        );
+        assertEq(seller.balance, sellerBalanceBefore + order.price);
+    }
+
+    function test_ClaimDefault() public {
+        // Setup market
+        vm.startPrank(owner);
+        uint256 marketId = market.createMarket(
+            24 hours, // fulfillWindow
+            PLATFORM_FEE,
+            "MOCK URI",
+            false
+        );
+
+        market.setMarketTokenDetails(marketId, 100 ether, address(token));
+        market.setMarketDeadline(marketId);
+        vm.stopPrank();
+
+        // Create order parameters
+        IPremarket.Order memory order = IPremarket.Order({
+            maker: seller,
+            marketId: marketId,
+            price: 10 ether,
+            salt: bytes32(uint256(1))
+        });
+
+        bytes32 orderHash = market.getOrderHash(order);
+
+        // Seller creates order
+        vm.startPrank(seller);
+        market.createOrder{value: order.price}(order);
+        vm.stopPrank();
+
+        // Buyer matches order
+        vm.startPrank(buyer);
+        market.matchOrder{value: order.price}(order);
+
+        // Record balances before default
+        uint256 buyerBalanceBefore = buyer.balance;
+        uint256 ownerBalanceBefore = owner.balance;
+
+        // Fast forward past deadline
+        vm.warp(block.timestamp + 25 hours);
+
+        // Buyer claims default
+        market.claimDefault(order);
+        vm.stopPrank();
+
+        (, , , , IPremarket.OrderStatus orderStatus) = market.getOrderByHash(
+            orderHash
+        );
+
+        // Verify order defaulted
+        assertEq(
+            uint256(orderStatus),
+            uint256(IPremarket.OrderStatus.Defaulted)
+        );
+
+        // Verify balances - buyer gets their payment back, platform gets seller's collateral
+        assertEq(buyer.balance, buyerBalanceBefore + order.price);
+        assertEq(owner.balance, ownerBalanceBefore + order.price);
+    }
+}

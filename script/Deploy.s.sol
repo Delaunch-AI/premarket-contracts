@@ -12,16 +12,17 @@ contract DeployScript is Script {
 
         Premarket premarket = new Premarket();
 
-        IPremarket.Lot[] memory lots = new IPremarket.Lot[](3);
-        lots[0] = IPremarket.Lot("Small", 0.01 ether);
-        lots[1] = IPremarket.Lot("Medium", 0.03 ether);
-        lots[2] = IPremarket.Lot("Large", 0.05 ether);
-
         premarket.createMarket(
-            lots,
             86400,
             500,
             "https://pyrdmmdqiqerkvwzvkha.supabase.co/storage/v1/object/public/premarket_static/markets/0.json",
+            false
+        );
+
+        premarket.createMarket(
+            86400,
+            500,
+            "https://pyrdmmdqiqerkvwzvkha.supabase.co/storage/v1/object/public/premarket_static/markets/1.json",
             false
         );
 
