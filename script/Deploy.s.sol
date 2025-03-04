@@ -6,6 +6,8 @@ import "../src/Premarket.sol";
 import "../src/interfaces/IPremarket.sol";
 
 contract DeployScript is Script {
+    address public constant feeReceiver = 0x6f537Dd2E6C75Aa585A209A39FbbC41Fe50bd515;
+
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
@@ -27,6 +29,8 @@ contract DeployScript is Script {
             "https://pyrdmmdqiqerkvwzvkha.supabase.co/storage/v1/object/public/premarket_static/markets/1.json",
             false // defaultCollateralToBuyer
         );
+
+        premarket.setFeeReceiver(feeReceiver);
 
         console.log("Premarket: ", address(premarket));
     }

@@ -14,6 +14,8 @@ import "./interfaces/IPremarket.sol";
 contract Premarket is Ownable, ReentrancyGuard, IPremarket {
     using ECDSA for bytes32;
 
+    address public feeReceiver;
+
     // State variables
     uint256 public marketCounter;
     mapping(uint256 => Market) private _markets;
@@ -22,6 +24,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
     mapping(address => bytes32[]) private _userOrderHashes;
 
     constructor() Ownable(msg.sender) {
+        feeReceiver = msg.sender;
         marketCounter = 0;
     }
 
@@ -368,10 +371,16 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         if (!success1) revert TransferFailed();
 
         // Send fee to platform
-        (bool success2, ) = owner().call{value: paymentFee}("");
+        (bool success2, ) = feeReceiver.call{value: paymentFee}("");
         if (!success2) revert TransferFailed();
 
         emit OrderFulfilled(orderHash);
+    }
+
+    function setFeeReceiver(address feeReceiver_) external onlyOwner {
+        (bool success, ) = feeReceiver_.call{value: 0}("");
+        if (!success) revert InvalidFeeReceiver();
+        feeReceiver = feeReceiver_;
     }
 
     /**
@@ -444,11 +453,11 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             if (!success2) revert TransferFailed();
 
             // Send fee to platform
-            (bool success3, ) = owner().call{value: platformFee}("");
+            (bool success3, ) = feeReceiver.call{value: platformFee}("");
             if (!success3) revert TransferFailed();
         } else {
             // If not defaulting to buyer, send entire amount to platform
-            (bool success2, ) = owner().call{value: platformAmount}("");
+            (bool success2, ) = feeReceiver.call{value: platformAmount}("");
             if (!success2) revert TransferFailed();
         }
 

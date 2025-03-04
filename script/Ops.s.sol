@@ -29,7 +29,7 @@ import "../src/interfaces/IPremarket.sol";
 //     );
 
 contract OpsScript is Script {
-    uint256 marketId = 1;
+    uint256 marketId = 5;
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
@@ -39,10 +39,10 @@ contract OpsScript is Script {
         );
 
         // premarket.createMarket(
-        //     86400, // 24 hours
+        //     10 minutes, // 24 hours
         //     500, // 5% platform fee
         //     3000, // 30% default fee
-        //     "https://pyrdmmdqiqerkvwzvkha.supabase.co/storage/v1/object/public/premarket_static/markets/0.json",
+        //     "https://pyrdmmdqiqerkvwzvkha.supabase.co/storage/v1/object/public/premarket_static/markets/2.json",
         //     false // defaultCollateralToBuyer
         // );
 
@@ -54,7 +54,7 @@ contract OpsScript is Script {
         //     false // defaultCollateralToBuyer
         // );
 
-        // premarket.stopMarket(marketId);
+        premarket.stopMarket(marketId);
 
         // premarket.overrideMarketTokenDetails(
         //     marketId,
@@ -62,12 +62,12 @@ contract OpsScript is Script {
         //     110 ether
         // );
 
-        // premarket.setMarketTokenDetails(
-        //     marketId,
-        //     110 ether,
-        //     0x5Ae5f0b8cbCf6F1f3fD942B748e1b6E7b107F0ea
-        // );
-        // premarket.setMarketDeadline(marketId);
+        premarket.setMarketTokenDetails(
+            marketId,
+            110 ether,
+            0x5Ae5f0b8cbCf6F1f3fD942B748e1b6E7b107F0ea
+        );
+        premarket.setMarketDeadline(marketId);
 
         // premarket.stopMarket(marketId);
         // premarket.startMarket(marketId);

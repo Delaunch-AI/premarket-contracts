@@ -72,6 +72,7 @@ interface IPremarket {
     );
 
     // Errors
+    error InvalidFeeReceiver();
     error MarketEnded();
     error ExistingOrder();
     error InvalidMarket();
@@ -159,7 +160,7 @@ interface IPremarket {
     function rescueAvax() external;
 
     function stopMarket(uint256 marketId) external;
-    
+
     function startMarket(uint256 marketId) external;
 
     function rescueERC20(address tokenAddress) external;
