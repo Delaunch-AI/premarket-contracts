@@ -31,11 +31,14 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
     function createMarket(
         uint256 fulfillWindow,
         uint256 platformFeeRate,
+        uint256 defaultFeeRate,
         string calldata metadataURI,
         bool defaultCollateralToBuyer
     ) external onlyOwner returns (uint256) {
         if (
-            fulfillWindow == 0 || platformFeeRate > 1000 // Max 10% fee
+            fulfillWindow == 0 || 
+            platformFeeRate > 1000 || // Max 10% fee
+            defaultFeeRate > 1000 // Max 10% default fee
         ) {
             revert InvalidMarketParameters();
         }
@@ -49,6 +52,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
             fulfillDeadline: 0,
             hasDeadline: false,
             platformFeeRate: platformFeeRate,
+            defaultFeeRate: defaultFeeRate,
             isActive: true,
             hasTokenDetails: false,
             defaultCollateralToBuyer: defaultCollateralToBuyer,
@@ -57,6 +61,21 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
 
         emit MarketCreated(marketId);
         return marketId;
+    }
+
+    /**
+     * @dev Updates the default fee rate for a market
+     */
+    function setDefaultFeeRate(
+        uint256 marketId,
+        uint256 defaultFeeRate
+    ) external onlyOwner {
+        if (defaultFeeRate > 1000) { // Max 10% fee
+            revert InvalidMarketParameters();
+        }
+        Market storage market = _markets[marketId];
+        market.defaultFeeRate = defaultFeeRate;
+        emit DefaultFeeRateUpdated(marketId, defaultFeeRate);
     }
 
     /**
@@ -388,12 +407,24 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         (bool success1, ) = msg.sender.call{value: buyerAmount}("");
         if (!success1) revert TransferFailed();
 
-        // Send seller's collateral to platform or buyer based on market setting
-        address collateralRecipient = market.defaultCollateralToBuyer
-            ? msg.sender
-            : owner();
-        (bool success2, ) = collateralRecipient.call{value: platformAmount}("");
-        if (!success2) revert TransferFailed();
+        // Handle seller's collateral based on market setting
+        if (market.defaultCollateralToBuyer) {
+            // Calculate fee using the market's defaultFeeRate
+            uint256 platformFee = (platformAmount * market.defaultFeeRate) / 10000;
+            uint256 buyerShare = platformAmount - platformFee;
+            
+            // Send remaining amount to buyer
+            (bool success2, ) = msg.sender.call{value: buyerShare}("");
+            if (!success2) revert TransferFailed();
+            
+            // Send fee to platform
+            (bool success3, ) = owner().call{value: platformFee}("");
+            if (!success3) revert TransferFailed();
+        } else {
+            // If not defaulting to buyer, send entire amount to platform
+            (bool success2, ) = owner().call{value: platformAmount}("");
+            if (!success2) revert TransferFailed();
+        }
 
         emit OrderDefaulted(orderHash);
     }

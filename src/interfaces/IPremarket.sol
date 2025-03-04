@@ -39,6 +39,7 @@ interface IPremarket {
         uint256 fulfillWindow; // Time window for fulfillment after match
         uint256 fulfillDeadline; // Time when token details were set
         uint256 platformFeeRate; // Platform fee in basis points (e.g. 1000 = 10%)
+        uint256 defaultFeeRate; // Fee rate for defaults in basis points (e.g. 1000 = 10%)
         bool isActive; // Market status
         bool hasTokenDetails; // Whether token details is set
         bool hasDeadline; // Whether fulfill deadline is set
@@ -62,6 +63,10 @@ interface IPremarket {
     event DefaultCollateralSettingUpdated(
         uint256 indexed marketId,
         bool defaultCollateralToBuyer
+    );
+    event DefaultFeeRateUpdated(
+        uint256 indexed marketId,
+        uint256 defaultFeeRate
     );
 
     // Errors
