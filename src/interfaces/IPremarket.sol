@@ -65,6 +65,7 @@ interface IPremarket {
     );
 
     // Errors
+    error MarketEnded();
     error ExistingOrder();
     error InvalidMarket();
     error InvalidMarketParameters();
@@ -73,6 +74,7 @@ interface IPremarket {
     error InvalidOrder();
     error InsufficientCollateral();
     error Unauthorized();
+    error DeadlineNotSet();
     error DeadlineNotReached();
     error DeadlinePassed();
     error TransferFailed();

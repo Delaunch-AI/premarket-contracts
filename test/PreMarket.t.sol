@@ -63,19 +63,6 @@ contract PreMarketTest is Test {
         bool isActive = _market.isActive;
         bool hasToken = _market.hasTokenDetails;
 
-        // (
-        //     ,
-        //     address tokenAddress,
-        //     ,
-        //     ,
-        //     ,
-        //     ,
-        //     bool isActive,
-        //     bool hasToken,
-        //     ,
-
-        // ) = market.getMarketDetails(marketId);
-
         assertEq(tokenAddress, address(0));
         assertTrue(isActive);
         assertFalse(hasToken);
@@ -148,7 +135,6 @@ contract PreMarketTest is Test {
         );
 
         market.setMarketTokenDetails(marketId, 100 ether, address(token));
-        market.setMarketDeadline(marketId);
         vm.stopPrank();
 
         // Create order parameters
@@ -162,24 +148,21 @@ contract PreMarketTest is Test {
         bytes32 orderHash = market.getOrderHash(order);
 
         // Seller creates order
-        vm.startPrank(seller);
+        vm.prank(seller);
         market.createOrder{value: order.price}(order);
-        vm.stopPrank();
 
         // Buyer matches order
-        vm.startPrank(buyer);
+        vm.prank(buyer);
         market.matchOrder{value: order.price}(order);
-        vm.stopPrank();
+
+        vm.prank(owner);
+        market.setMarketDeadline(marketId);
 
         // Record balances before fulfillment
         uint256 sellerBalanceBefore = seller.balance;
         uint256 ownerBalanceBefore = owner.balance;
         uint256 buyerTokensBefore = token.balanceOf(buyer);
         uint256 ownerTokensBefore = token.balanceOf(owner);
-
-        // (uint256 tokenAmount, , , , , , , , , ) = market.getMarketDetails(
-        //     marketId
-        // );
 
         IPremarket.Market memory _market = market.getMarketDetails(marketId);
         uint256 tokenAmount = _market.tokenAmount;
@@ -273,7 +256,6 @@ contract PreMarketTest is Test {
         );
 
         market.setMarketTokenDetails(marketId, 100 ether, address(token));
-        market.setMarketDeadline(marketId);
         vm.stopPrank();
 
         // Create order parameters
@@ -292,8 +274,11 @@ contract PreMarketTest is Test {
         vm.stopPrank();
 
         // Buyer matches order
-        vm.startPrank(buyer);
+        vm.prank(buyer);
         market.matchOrder{value: order.price}(order);
+
+        vm.prank(owner);
+        market.setMarketDeadline(marketId);
 
         // Record balances before default
         uint256 buyerBalanceBefore = buyer.balance;
@@ -303,8 +288,8 @@ contract PreMarketTest is Test {
         vm.warp(block.timestamp + 25 hours);
 
         // Buyer claims default
+        vm.prank(buyer);
         market.claimDefault(order);
-        vm.stopPrank();
 
         (, , , , IPremarket.OrderStatus orderStatus) = market.getOrderByHash(
             orderHash
@@ -319,5 +304,48 @@ contract PreMarketTest is Test {
         // Verify balances - buyer gets their payment back, platform gets seller's collateral
         assertEq(buyer.balance, buyerBalanceBefore + order.price);
         assertEq(owner.balance, ownerBalanceBefore + order.price);
+    }
+
+    function testRescueAvax() public {
+        vm.deal(address(market), 10 ether); // Fund contract with AVAX
+
+        uint256 ownerBalanceBefore = owner.balance;
+        uint256 contractBalanceBefore = address(market).balance;
+        vm.prank(owner);
+        market.rescueAvax();
+
+        uint256 ownerBalanceAfter = owner.balance;
+        uint256 contractBalanceAfter = address(market).balance;
+
+        assertEq(ownerBalanceAfter, ownerBalanceBefore + contractBalanceBefore);
+        assertEq(contractBalanceAfter, 0);
+    }
+
+    function testRescueAvax_RevertIfNotOwner() public {
+        vm.prank(seller);
+        vm.expectRevert();
+        market.rescueAvax();
+    }
+
+    function testRescueERC20() public {
+        vm.startPrank(owner);
+        token.transfer(address(market), 100 ether);
+
+        uint256 ownerBalanceBefore = token.balanceOf(owner);
+        uint256 contractBalanceBefore = token.balanceOf(address(market));
+
+        market.rescueERC20(address(token));
+
+        uint256 ownerBalanceAfter = token.balanceOf(owner);
+        uint256 contractBalanceAfter = token.balanceOf(address(market));
+
+        assertEq(ownerBalanceAfter, ownerBalanceBefore + contractBalanceBefore);
+        assertEq(contractBalanceAfter, 0);
+    }
+
+    function testRescueERC20_RevertIfNotOwner() public {
+        vm.prank(seller);
+        vm.expectRevert();
+        market.rescueERC20(address(token));
     }
 }

@@ -147,7 +147,6 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
     ) external view returns (Market memory market) {
         Market storage _market = _markets[marketId];
         if (!_market.initialized) revert InvalidMarket();
-
         return _market;
     }
 
@@ -252,12 +251,14 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
     function matchOrder(Order calldata order) external payable nonReentrant {
         bytes32 orderHash = getOrderHash(order);
         StoredOrder storage storedOrder = _orders[orderHash];
-
+        Market memory market = _markets[order.marketId];
         if (
             storedOrder.marketId != order.marketId ||
             storedOrder.maker == msg.sender ||
             storedOrder.status != OrderStatus.Active
         ) revert InvalidOrder();
+
+        if (market.hasDeadline) revert MarketEnded();
 
         // Verify payment matches price
         if (msg.value != storedOrder.price) revert InsufficientCollateral();
@@ -275,7 +276,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
      */
     function fulfillOrder(Order calldata order) external nonReentrant {
         bytes32 orderHash = getOrderHash(order);
-        Market storage market = _markets[order.marketId];
+        Market memory market = _markets[order.marketId];
         StoredOrder storage storedOrder = _orders[orderHash];
         if (
             storedOrder.marketId != order.marketId ||
@@ -284,6 +285,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
 
         if (storedOrder.maker != msg.sender) revert Unauthorized();
         if (!market.hasTokenDetails) revert TokenDetailsNotSet();
+        if (!market.hasDeadline) revert DeadlineNotSet();
         if (block.timestamp > market.fulfillDeadline) revert DeadlinePassed();
 
         // Calculate fees
@@ -329,7 +331,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
     }
 
     /**
-     * @dev Cancels an unmatched order
+     * @dev Cancels an unmatched order, valid for pre & post TGE
      */
     function cancelOrder(Order calldata order) external nonReentrant {
         bytes32 orderHash = getOrderHash(order);
@@ -361,7 +363,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
      */
     function claimDefault(Order calldata order) external nonReentrant {
         bytes32 orderHash = getOrderHash(order);
-        Market storage market = _markets[order.marketId];
+        Market memory market = _markets[order.marketId];
         StoredOrder storage storedOrder = _orders[orderHash];
         // Verify order state and authorization
         if (
@@ -396,18 +398,18 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         emit OrderDefaulted(orderHash);
     }
 
-    receive() external payable {}
-
-    //emergency withdraws
-    function withdraw() external onlyOwner {
+    // Emergency
+    function rescueAvax() external onlyOwner {
         (bool success, ) = owner().call{value: address(this).balance}("");
         if (!success) revert TransferFailed();
     }
 
-    function withdrawToken(address tokenAddress) external onlyOwner {
+    function rescueERC20(address tokenAddress) external onlyOwner {
         IERC20 token = IERC20(tokenAddress);
         if (!token.transfer(owner(), token.balanceOf(address(this)))) {
             revert TransferFailed();
         }
     }
+
+    receive() external payable {}
 }
