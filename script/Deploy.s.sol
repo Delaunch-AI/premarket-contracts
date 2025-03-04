@@ -13,17 +13,19 @@ contract DeployScript is Script {
         Premarket premarket = new Premarket();
 
         premarket.createMarket(
-            86400,
-            500,
+            86400, // 24 hours
+            500, // 5% platform fee
+            500, // 5% default fee
             "https://pyrdmmdqiqerkvwzvkha.supabase.co/storage/v1/object/public/premarket_static/markets/0.json",
-            false
+            false // defaultCollateralToBuyer
         );
 
         premarket.createMarket(
-            86400,
-            500,
+            86400, // 24 hours
+            500, // 5% platform fee
+            500, // 5% default fee
             "https://pyrdmmdqiqerkvwzvkha.supabase.co/storage/v1/object/public/premarket_static/markets/1.json",
-            false
+            false // defaultCollateralToBuyer
         );
 
         console.log("Premarket: ", address(premarket));
