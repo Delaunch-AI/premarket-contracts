@@ -392,6 +392,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         address collateralRecipient = market.defaultCollateralToBuyer
             ? msg.sender
             : owner();
+
         (bool success2, ) = collateralRecipient.call{value: platformAmount}("");
         if (!success2) revert TransferFailed();
 
