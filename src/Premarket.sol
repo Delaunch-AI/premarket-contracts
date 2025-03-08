@@ -15,8 +15,6 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
     using ECDSA for bytes32;
 
     address public feeReceiver;
-
-    // State variables
     uint256 public marketCounter;
     mapping(uint256 => Market) private _markets;
     mapping(bytes32 => StoredOrder) private _orders;
@@ -38,11 +36,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         string calldata metadataURI,
         bool defaultCollateralToBuyer
     ) external onlyOwner returns (uint256) {
-        if (
-            fulfillWindow == 0 ||
-            platformFeeRate > 1000 || // Max 10% fee
-            defaultFeeRate > 4000 // Max 40% default fee
-        ) {
+        if (fulfillWindow == 0) {
             revert InvalidMarketParameters();
         }
 
@@ -121,6 +115,9 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         emit TokenDetailsSet(marketId, tokenAmount, tokenAddress);
     }
 
+    /**
+     * @dev Stops market for trading
+     */
     function stopMarket(uint256 marketId) external onlyOwner {
         if (!_markets[marketId].initialized || !_markets[marketId].isActive)
             revert InvalidMarket();
@@ -131,6 +128,9 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
         emit MarketStopped(marketId);
     }
 
+    /**
+     * @dev Resumes market for trading
+     */
     function startMarket(uint256 marketId) external onlyOwner {
         if (!_markets[marketId].initialized || _markets[marketId].isActive)
             revert InvalidMarket();
@@ -207,7 +207,7 @@ contract Premarket is Ownable, ReentrancyGuard, IPremarket {
     }
 
     /**
-     * @dev Computes order hash for signing
+     * @dev Computes order hash as identifier
      */
     function getOrderHash(Order calldata order) public pure returns (bytes32) {
         return

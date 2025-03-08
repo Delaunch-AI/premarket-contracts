@@ -3,7 +3,7 @@ pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Test, console2} from "forge-std/Test.sol";
-import "../src/PreMarket.sol";
+import "../src/Premarket.sol";
 import "../src/interfaces/IPremarket.sol";
 
 contract MockToken is ERC20 {
@@ -12,7 +12,7 @@ contract MockToken is ERC20 {
     }
 }
 
-contract PreMarketTest is Test {
+contract PremarketTest is Test {
     Premarket public market;
     MockToken public token;
 
